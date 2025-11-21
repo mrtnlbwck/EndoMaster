@@ -2,12 +2,12 @@
 using EndoMaster.ServerDb;
 using EndoMaster.Views;
 using Microsoft.UI;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using System;
 using System.Threading.Tasks;
-using Microsoft.UI.Windowing;
 using WinRT.Interop;
 
 namespace EndoMaster
@@ -20,6 +20,10 @@ namespace EndoMaster
 
         private bool _dbConnecting;
         private bool _dbReady;
+
+        // cache do listy pacjentów
+        private PatientsView? _patientsView;
+        private bool _patientsEventsWired;
 
         public MainWindow()
         {
@@ -81,48 +85,22 @@ namespace EndoMaster
         }
 
         // === obsługa NavigationView ===
-        private async void NavView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
+        private async void NavView_SelectionChanged(
+            NavigationView sender,
+            NavigationViewSelectionChangedEventArgs args)
         {
-            if (args.SelectedItem is not NavigationViewItem item) return;
+            if (args.SelectedItem is not NavigationViewItem item)
+                return;
 
             switch (item.Tag)
             {
                 case "patients":
                     SafeNavigate(typeof(PatientsView));
+
                     if (_db != null && EnsureContentFrame().Content is PatientsView pv)
                     {
+                        _patientsView = pv;
                         await pv.Initialize(_db);
-                        // zabezpieczenie przed wielokrotnym subskrybowaniem - najpierw odpinamy
-                        //pv.PatientSelected = null;
-                        //pv.StartExamRequested = null;
-                        //pv.PatientDetailsRequested = null;
-
-                        pv.PatientSelected += id => _currentPatientId = id;
-                        pv.StartExamRequested += async pid =>
-                        {
-                            if (_db == null) return;
-                            _currentPatientId = pid;
-                            _currentExamId = await _db.CreateExamAsync(pid);
-
-                            SafeNavigate(typeof(CameraView));
-                            if (EnsureContentFrame().Content is CameraView cv)
-                            {
-                                cv.Initialize(_db);
-                                cv.SetContext(_currentPatientId!.Value, _currentExamId!.Value);
-                                await cv.StartWithDefaultCameraAsync();
-                            }
-                        };
-                        pv.PatientDetailsRequested += async pid =>
-                        {
-                            if (_db == null) return;
-                            _currentPatientId = pid;
-
-                            SafeNavigate(typeof(PatientDetailsView));
-                            if (EnsureContentFrame().Content is PatientDetailsView details)
-                            {
-                                await details.InitializeAsync(_db, pid);
-                            }
-                        };
                     }
                     break;
 
@@ -132,6 +110,7 @@ namespace EndoMaster
                         // brak aktywnego pacjenta → wracamy do listy
                         if (NavView.MenuItems.Count > 0)
                             NavView.SelectedItem = NavView.MenuItems[0];
+
                         SafeNavigate(typeof(PatientsView));
                         return;
                     }
@@ -196,6 +175,7 @@ namespace EndoMaster
             }
         }
 
+        // Po udanym połączeniu z DB – konfigurujemy PatientsView i eventy
         private async Task AfterDbConnectedAsync()
         {
             if (_db == null) return;
@@ -203,56 +183,92 @@ namespace EndoMaster
             SafeNavigate(typeof(PatientsView));
             var frame = EnsureContentFrame();
 
-            if (frame.Content is not PatientsView pv)
+            PatientsView pv;
+            if (frame.Content is PatientsView existing)
+            {
+                pv = existing;
+            }
+            else
             {
                 pv = new PatientsView();
                 frame.Content = pv;
             }
 
+            _patientsView = pv;
             await pv.Initialize(_db);
 
-            //pv.PatientSelected = null;
-            //pv.StartExamRequested = null;
-            //pv.PatientDetailsRequested = null;
-
-            pv.PatientSelected += id => _currentPatientId = id;
-
-            pv.StartExamRequested += async pid =>
+            if (!_patientsEventsWired)
             {
-                if (_db == null) return;
-                _currentPatientId = pid;
-                _currentExamId = await _db.CreateExamAsync(pid);
+                _patientsEventsWired = true;
 
-                SafeNavigate(typeof(CameraView));
-                var f2 = EnsureContentFrame();
+                // wybór pacjenta
+                pv.PatientSelected += id => _currentPatientId = id;
 
-                if (f2.Content is not CameraView cv)
+                // rozpoczęcie badania (otwarcie kamery)
+                pv.StartExamRequested += async pid =>
                 {
-                    cv = new CameraView();
-                    f2.Content = cv;
-                }
+                    if (_db == null) return;
+                    _currentPatientId = pid;
+                    _currentExamId = await _db.CreateExamAsync(pid);
 
-                cv.Initialize(_db);
-                cv.SetContext(_currentPatientId!.Value, _currentExamId!.Value);
-                await cv.StartWithDefaultCameraAsync();
-            };
+                    SafeNavigate(typeof(CameraView));
+                    var f2 = EnsureContentFrame();
 
-            pv.PatientDetailsRequested += async pid =>
-            {
-                if (_db == null) return;
-                _currentPatientId = pid;
+                    CameraView cv;
+                    if (f2.Content is CameraView existingCv)
+                    {
+                        cv = existingCv;
+                    }
+                    else
+                    {
+                        cv = new CameraView();
+                        f2.Content = cv;
+                    }
 
-                SafeNavigate(typeof(PatientDetailsView));
-                var f3 = EnsureContentFrame();
+                    cv.Initialize(_db);
+                    cv.SetContext(_currentPatientId!.Value, _currentExamId!.Value);
+                    await cv.StartWithDefaultCameraAsync();
+                };
 
-                if (f3.Content is not PatientDetailsView details)
+                // przejście do szczegółów pacjenta
+                pv.PatientDetailsRequested += async pid =>
                 {
-                    details = new PatientDetailsView();
-                    f3.Content = details;
-                }
+                    if (_db == null) return;
+                    _currentPatientId = pid;
 
-                await details.InitializeAsync(_db, pid);
-            };
+                    SafeNavigate(typeof(PatientDetailsView));
+                    var f3 = EnsureContentFrame();
+
+                    PatientDetailsView details;
+                    if (f3.Content is PatientDetailsView existingDetails)
+                    {
+                        details = existingDetails;
+                    }
+                    else
+                    {
+                        details = new PatientDetailsView();
+                        f3.Content = details;
+                    }
+
+                    await details.InitializeAsync(_db, pid);
+
+                    // najpierw odpinamy (na wszelki wypadek), potem podpinamy
+                    details.BackRequested -= OnPatientDetailsBackRequested;
+                    details.BackRequested += OnPatientDetailsBackRequested;
+                };
+            }
+        }
+
+        // Powrót z widoku pacjenta do listy pacjentów
+        private async void OnPatientDetailsBackRequested()
+        {
+            SafeNavigate(typeof(PatientsView));
+
+            if (NavView.MenuItems.Count > 0)
+                NavView.SelectedItem = NavView.MenuItems[0];
+
+            if (_patientsView != null && _db != null)
+                await _patientsView.Initialize(_db);
         }
 
         // === dialog konfiguracji DB ===

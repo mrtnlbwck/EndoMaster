@@ -2,17 +2,16 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Media.Imaging;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Windows.Media.Core;
-using Windows.Media.Playback;
 using Windows.Storage;
+using Windows.Storage.Streams;
+using Windows.Media.Playback;
+using Windows.Media.Core;
 
 namespace EndoMaster.Views
 {
@@ -24,6 +23,7 @@ namespace EndoMaster.Views
         private List<ExamRow> _exams = new();
         private List<MediaRow> _media = new();
         private MediaRow? _selectedMedia;
+        public event Action? BackRequested;
 
         private sealed record ExamRow(
             int Id,
@@ -33,22 +33,20 @@ namespace EndoMaster.Views
             bool Important
         );
 
-        private sealed class MediaRow
-        {
-            public bool IsMovie { get; init; }
-            public int Id { get; init; }
-            public string Kind { get; init; } = "";
-            public string Time { get; init; } = "";
-            public string FileName { get; init; } = "";
-            public string FullPath { get; init; } = "";
-            public string? Description { get; set; }
-            public bool Important { get; set; }
-        }
+        private sealed record MediaRow(
+            bool IsMovie,
+            int Id,
+            string Kind,
+            string Time,
+            string FileName,
+            string FullPath,
+            string? Description,
+            bool Important
+        );
 
         public PatientDetailsView()
         {
             InitializeComponent();
-            ClearSelectionUi();
         }
 
         public async Task InitializeAsync(Db db, int patientId)
@@ -64,8 +62,14 @@ namespace EndoMaster.Views
             PatientPeselText.Text = $"PESEL: {p.pesel}";
             PatientExtraText.Text = string.Empty;
 
-            // ---------- lista badań ----------
-            var exams = await _db.GetExamsForPatientAsync(patientId);
+            await ReloadExamsAsync();
+        }
+
+        private async Task ReloadExamsAsync()
+        {
+            if (_db == null) return;
+
+            var exams = await _db.GetExamsForPatientAsync(_patientId);
 
             _exams = exams.Select(e =>
                 new ExamRow(
@@ -85,64 +89,165 @@ namespace EndoMaster.Views
             }
             else
             {
-                ClearMediaListUi("Brak badań dla tego pacjenta.");
+                MediaList.ItemsSource = null;
+                SelectedMediaHeader.Text = "Elementy badania – brak plików";
+                ClearPreview();
+                ExamDescriptionText.Text = "";
+                EditDescriptionBtn.Content = "Edytuj opis";
+                ExamDescriptionText.IsReadOnly = true;
             }
         }
 
-        // wybór badania -> lista mediów
         private async void ExamsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_db == null || ExamsList.SelectedItem is not ExamRow row)
             {
-                ClearMediaListUi("Brak wybranego badania");
+                // brak wybranego badania – czyścimy
+                MediaList.ItemsSource = null;
+                SelectedMediaHeader.Text = "Elementy badania";
+                ClearPreview();
+
+                ExamDescriptionText.Text = "";
+                ExamDescriptionText.IsReadOnly = true;
+                EditDescriptionBtn.Content = "Edytuj opis";
+                EditDescriptionBtn.IsEnabled = false;
+                DeleteExamBtn.IsEnabled = false;
+
+                DeleteMediaBtn.IsEnabled = false;
+                _selectedMedia = null;
+                await SetSelectedMediaAsync(null);
+
                 return;
             }
 
-            await LoadMediaForExamAsync(row.Id);
+            // opis badania
+            ExamDescriptionText.Text = row.Description ?? string.Empty;
+            ExamDescriptionText.IsReadOnly = true;
+            EditDescriptionBtn.Content = "Edytuj opis";
+            EditDescriptionBtn.IsEnabled = true;
+            DeleteExamBtn.IsEnabled = true;
+
+            // media dla wybranego badania
+            await ReloadMediaForExamAsync(row.Id);
         }
 
-        private async Task LoadMediaForExamAsync(int examId)
+        private async Task ReloadMediaForExamAsync(int examId)
         {
             if (_db == null) return;
 
             var media = await _db.GetMediaForExamAsync(examId);
 
             _media = media.Select(m =>
-                new MediaRow
-                {
-                    IsMovie = m.isMovie,
-                    Id = m.id,
-                    Kind = m.isMovie ? "Video" : "Foto",
-                    Time = m.time.ToString("hh\\:mm\\:ss"),
-                    FileName = Path.GetFileName(m.path),
-                    FullPath = m.path,
-                    Description = m.description,
-                    Important = m.important
-                }
+                new MediaRow(
+                    IsMovie: m.isMovie,
+                    Id: m.id,
+                    Kind: m.isMovie ? "Nagranie" : "Zdjęcie",
+                    Time: m.time.ToString("hh\\:mm\\:ss"),
+                    FileName: Path.GetFileName(m.path),
+                    FullPath: m.path,
+                    Description: m.description,
+                    Important: m.important
+                )
             ).ToList();
 
             MediaList.ItemsSource = _media;
+
+            if (_media.Count > 0)
+                MediaList.SelectedIndex = 0;   // pierwsza pozycja od razu zaznaczona
+            else
+            {
+                _selectedMedia = null;
+                DeleteMediaBtn.IsEnabled = false;
+                await SetSelectedMediaAsync(null);
+            }
+
             SelectedMediaHeader.Text = _media.Count > 0
                 ? $"Elementy badania ({_media.Count})"
                 : "Elementy badania – brak plików";
-
-            ClearSelectionUi();
         }
 
-        // wybór elementu z listy
         private async void MediaList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (MediaList.SelectedItem is MediaRow row)
             {
-                await SetSelectedMediaAsync(row);
+                _selectedMedia = row;
+                DeleteMediaBtn.IsEnabled = true;
+                await SetSelectedMediaAsync(row);   // pokaz zdjęcie / nagranie
             }
             else
             {
-                ClearSelectionUi();
+                _selectedMedia = null;
+                DeleteMediaBtn.IsEnabled = false;
+                await SetSelectedMediaAsync(null);  // wyczyść podgląd
             }
         }
 
-        // double-click – też wyświetla podgląd
+
+        private async Task SetSelectedMediaAsync(MediaRow? row)
+        {
+            DeleteMediaBtn.IsEnabled = row is not null;
+            _selectedMedia = row;
+            if (row is null)
+            {
+                ClearPreview();
+                return;
+            }
+
+            if (!File.Exists(row.FullPath))
+            {
+                ClearPreview();
+                PreviewPlaceholder.Text = "Plik nie istnieje na dysku";
+                return;
+            }
+
+            try
+            {
+                if (row.IsMovie)
+                {
+                    PreviewImage.Visibility = Visibility.Collapsed;
+                    PreviewPlayer.Visibility = Visibility.Visible;
+
+                    var file = await StorageFile.GetFileFromPathAsync(row.FullPath);
+                    var ms = new MediaPlayer();
+                    ms.Source = MediaSource.CreateFromStorageFile(file);
+                    ms.IsMuted = false;
+
+                    PreviewPlayer.SetMediaPlayer(ms);
+                    ms.Play();
+                }
+                else
+                {
+                    PreviewPlayer.Visibility = Visibility.Collapsed;
+                    PreviewPlayer.SetMediaPlayer(null);
+
+                    PreviewImage.Visibility = Visibility.Visible;
+
+                    var file = await StorageFile.GetFileFromPathAsync(row.FullPath);
+                    using IRandomAccessStream stream = await file.OpenAsync(FileAccessMode.Read);
+                    var bmp = new BitmapImage();
+                    await bmp.SetSourceAsync(stream);
+                    PreviewImage.Source = bmp;
+                }
+
+                PreviewPlaceholder.Visibility = Visibility.Collapsed;
+            }
+            catch
+            {
+                ClearPreview();
+                PreviewPlaceholder.Text = "Nie udało się odtworzyć pliku";
+            }
+        }
+
+        private void ClearPreview()
+        {
+            PreviewPlayer.SetMediaPlayer(null);
+            PreviewPlayer.Visibility = Visibility.Collapsed;
+            PreviewImage.Source = null;
+            PreviewImage.Visibility = Visibility.Collapsed;
+            PreviewPlaceholder.Visibility = Visibility.Visible;
+            PreviewPlaceholder.Text = "Brak wybranego elementu";
+        }
+
         private async void MediaList_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
         {
             if (MediaList.SelectedItem is MediaRow row)
@@ -151,135 +256,100 @@ namespace EndoMaster.Views
             }
         }
 
-        private async Task SetSelectedMediaAsync(MediaRow row)
+        // ===== Usuwanie pojedynczego elementu (zdjęcie / nagranie) =====
+        private async void DeleteMediaBtn_Click(object sender, RoutedEventArgs e)
         {
-            _selectedMedia = row;
+            if (_db == null || MediaList.SelectedItem is not MediaRow row)
+                return;
 
-            ExamDescriptionText.Text = row.Description ?? "";
-            ImportantCheckBox.IsChecked = row.Important;
-
-            EditDescriptionBtn.IsEnabled = true;
-            DeleteMediaBtn.IsEnabled = true;
-            ImportantCheckBox.IsEnabled = true;
-
-            await ShowPreviewAsync(row);
-        }
-
-        private void ClearMediaListUi(string headerText)
-        {
-            _media.Clear();
-            MediaList.ItemsSource = null;
-            SelectedMediaHeader.Text = headerText;
-            ClearSelectionUi();
-        }
-
-        private void ClearSelectionUi()
-        {
-            _selectedMedia = null;
-            ExamDescriptionText.Text = "";
-            EditDescriptionBtn.IsEnabled = false;
-            DeleteMediaBtn.IsEnabled = false;
-            ImportantCheckBox.IsEnabled = false;
-            ImportantCheckBox.IsChecked = false;
-
-            // podgląd
-            try
+            // proste potwierdzenie (możesz podmienić na ContentDialog jak chcesz)
+            var dlg = new ContentDialog
             {
-                PreviewPlayer.MediaPlayer?.Pause();
-                PreviewPlayer.MediaPlayer?.Dispose();
-            }
-            catch { }
+                Title = "Usuń element",
+                Content = $"Czy na pewno chcesz usunąć ten element:\n{row.FileName}?",
+                PrimaryButtonText = "Usuń",
+                CloseButtonText = "Anuluj",
+                DefaultButton = ContentDialogButton.Close,
+                XamlRoot = this.XamlRoot
+            };
 
-            PreviewPlayer.Visibility = Visibility.Collapsed;
-            PreviewImage.Source = null;
-            PreviewImage.Visibility = Visibility.Collapsed;
-            PreviewPlaceholder.Visibility = Visibility.Visible;
+            var res = await dlg.ShowAsync();
+            if (res != ContentDialogResult.Primary)
+                return;
+
+            await _db.DeleteMediaAsync(row.IsMovie, row.Id);
+
+            // odśwież listę mediów dla bieżącego badania
+            if (ExamsList.SelectedItem is ExamRow examRow)
+                await ReloadMediaForExamAsync(examRow.Id);
         }
 
-        private async Task ShowPreviewAsync(MediaRow row)
+
+
+        // ===== Edycja / zapis opisu badania =====
+        private async void EditDescriptionBtn_Click(object sender, RoutedEventArgs e)
         {
-            PreviewPlaceholder.Visibility = Visibility.Collapsed;
+            if (_db == null) return;
+            if (ExamsList.SelectedItem is not ExamRow row) return;
 
-            if (row.IsMovie)
+            if (ExamDescriptionText.IsReadOnly)
             {
-                PreviewImage.Visibility = Visibility.Collapsed;
-                PreviewPlayer.Visibility = Visibility.Visible;
-
-                var file = await StorageFile.GetFileFromPathAsync(row.FullPath);
-                var source = MediaSource.CreateFromStorageFile(file);
-
-                if (PreviewPlayer.MediaPlayer == null)
-                {
-                    PreviewPlayer.SetMediaPlayer(new MediaPlayer());
-                }
-
-                PreviewPlayer.MediaPlayer.Source = source;
-                PreviewPlayer.MediaPlayer.IsMuted = false;
-                PreviewPlayer.MediaPlayer.Play();
+                // tryb edycji
+                ExamDescriptionText.IsReadOnly = false;
+                EditDescriptionBtn.Content = "Zapisz opis";
+                ExamDescriptionText.Focus(FocusState.Programmatic);
+                ExamDescriptionText.Select(ExamDescriptionText.Text.Length, 0);
             }
             else
             {
-                PreviewPlayer.Visibility = Visibility.Collapsed;
+                // zapis
+                var newDesc = ExamDescriptionText.Text.Trim();
+                await _db.UpdateExamDescriptionAsync(row.Id, newDesc);
 
-                var file = await StorageFile.GetFileFromPathAsync(row.FullPath);
-                var bitmap = new BitmapImage();
-                using (var stream = await file.OpenReadAsync())
+                // odśwież lokalną listę _exams
+                var idx = _exams.FindIndex(x => x.Id == row.Id);
+                if (idx >= 0)
                 {
-                    await bitmap.SetSourceAsync(stream);
+                    _exams[idx] = _exams[idx] with { Description = newDesc };
+                    ExamsList.ItemsSource = null;
+                    ExamsList.ItemsSource = _exams;
+                    ExamsList.SelectedItem = _exams[idx];
                 }
 
-                PreviewImage.Source = bitmap;
-                PreviewImage.Visibility = Visibility.Visible;
+                ExamDescriptionText.IsReadOnly = true;
+                EditDescriptionBtn.Content = "Edytuj opis";
             }
         }
 
-        // zapis opisu
-        private async void EditDescriptionBtn_Click(object sender, RoutedEventArgs e)
+        // ===== Usuwanie całego badania =====
+        private async void DeleteExamBtn_Click(object sender, RoutedEventArgs e)
         {
-            if (_db == null || _selectedMedia == null) return;
+            if (_db == null) return;
+            if (ExamsList.SelectedItem is not ExamRow row) return;
 
-            _selectedMedia.Description = ExamDescriptionText.Text;
-            _selectedMedia.Important = ImportantCheckBox.IsChecked == true;
+            var dlg = new ContentDialog
+            {
+                Title = "Usuń badanie",
+                Content = $"Czy na pewno chcesz usunąć całe badanie z dnia {row.Date}?\n" +
+                          "Zostaną również usunięte wszystkie powiązane zdjęcia i nagrania.",
+                PrimaryButtonText = "Usuń badanie",
+                CloseButtonText = "Anuluj",
+                DefaultButton = ContentDialogButton.Close,
+                XamlRoot = this.XamlRoot
+            };
 
-            await _db.UpdateMediaAsync(
-                _selectedMedia.IsMovie,
-                _selectedMedia.Id,
-                _selectedMedia.Description,
-                _selectedMedia.Important);
+            var res = await dlg.ShowAsync();
+            if (res != ContentDialogResult.Primary) return;
+
+            await _db.DeleteExamAsync(row.Id);
+
+            await ReloadExamsAsync();
         }
 
-        // usuwanie elementu
-        private async void DeleteMediaBtn_Click(object sender, RoutedEventArgs e)
+        private void BackBtn_Click(object sender, RoutedEventArgs e)
         {
-            if (_db == null || _selectedMedia == null) return;
-
-            var toDelete = _selectedMedia;
-
-            await _db.DeleteMediaAsync(toDelete.IsMovie, toDelete.Id);
-
-            _media.Remove(toDelete);
-            MediaList.ItemsSource = null;
-            MediaList.ItemsSource = _media;
-
-            SelectedMediaHeader.Text = _media.Count > 0
-                ? $"Elementy badania ({_media.Count})"
-                : "Elementy badania – brak plików";
-
-            ClearSelectionUi();
+            BackRequested?.Invoke();
         }
 
-        // zmiana checkboxa "ważne" – od razu zapis do DB
-        private async void ImportantCheckBox_Changed(object sender, RoutedEventArgs e)
-        {
-            if (_db == null || _selectedMedia == null) return;
-
-            _selectedMedia.Important = ImportantCheckBox.IsChecked == true;
-
-            await _db.UpdateMediaAsync(
-                _selectedMedia.IsMovie,
-                _selectedMedia.Id,
-                _selectedMedia.Description,
-                _selectedMedia.Important);
-        }
     }
 }

@@ -8,182 +8,173 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <UserControl.Resources>
-        <!-- prosty converter: bool -> Visible / Collapsed -->
-        <local:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
-    </UserControl.Resources>
-
     <Grid Padding="16">
+        <Grid.RowDefinitions>
+            <!-- górna część: badania + elementy badania + podgląd -->
+            <RowDefinition Height="*"/>
+            <!-- dolna część: opis badania + przyciski -->
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
         <Grid.ColumnDefinitions>
-            <!-- kolumna z listą badań -->
+            <!-- lewa kolumna: pacjent + lista badań -->
             <ColumnDefinition Width="280"/>
             <ColumnDefinition Width="16"/>
-            <!-- prawa strona: media + podgląd -->
+            <!-- prawa część: elementy badania + podgląd -->
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
-        <!-- LEWA STRONA – dane pacjenta + lista badań -->
-        <StackPanel Grid.Column="0" Spacing="6">
+        <!-- LEWA STRONA: pacjent + badania -->
+        <StackPanel Grid.Column="0" Grid.Row="0" Spacing="6">
+            <Button x:Name="BackBtn"
+            Content="← Lista pacjentów"
+            HorizontalAlignment="Left"
+            Margin="0,0,0,8"
+            Click="BackBtn_Click"/>
+            
             <TextBlock x:Name="PatientNameText"
                        FontSize="22"
                        FontWeight="SemiBold"/>
             <TextBlock x:Name="PatientPeselText" Opacity="0.8"/>
             <TextBlock x:Name="PatientExtraText" Opacity="0.8"/>
 
-            <TextBlock Text="Badania:" FontWeight="SemiBold" Margin="0,8,0,0"/>
+            <TextBlock Text="Badania:"
+                       FontWeight="SemiBold"
+                       Margin="0,8,0,0"/>
+
             <ListView x:Name="ExamsList"
                       Height="260"
                       SelectionChanged="ExamsList_SelectionChanged">
                 <ListView.ItemTemplate>
                     <DataTemplate>
-                        <Grid Padding="4">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="100"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="30"/>
-                            </Grid.ColumnDefinitions>
-
-                            <!-- data badania -->
-                            <TextBlock Text="{Binding Date}"
-                                       Grid.Column="0"/>
-
-                            <!-- opis / typ badania -->
-                            <TextBlock Text="{Binding Label}"
-                                       Grid.Column="1"/>
-
-                            <!-- znacznik "ważne" -->
-                            <TextBlock Text="★"
-                                       Grid.Column="2"
-                                       Foreground="Gold"
-                                       HorizontalAlignment="Right"
-                                       Visibility="{Binding Important,
-                                            Converter={StaticResource BoolToVisibilityConverter}}"/>
+                        <Grid ColumnDefinitions="120,*">
+                            <TextBlock Grid.Column="0"
+                                       Text="{Binding Date}"
+                                       Margin="0,0,8,0"/>
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding Label}"/>
                         </Grid>
                     </DataTemplate>
                 </ListView.ItemTemplate>
             </ListView>
         </StackPanel>
 
-        <!-- PRAWA STRONA -->
-        <Grid Grid.Column="2">
+        <!-- PRAWA STRONA: elementy badania + podgląd -->
+        <Grid Grid.Column="2" Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <!-- lista elementów -->
+                <ColumnDefinition Width="2*"/>
+                <!-- podgląd -->
+                <ColumnDefinition Width="3*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- lista elementów badania + przycisk USUŃ ELEMENT -->
+            <StackPanel Grid.Column="0" Spacing="4">
+                <TextBlock x:Name="SelectedMediaHeader"
+                           FontSize="18"
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,4"
+                           Text="Elementy badania"/>
+
+                <ListView x:Name="MediaList"
+                          Height="260"
+                          SelectionChanged="MediaList_SelectionChanged"
+                          DoubleTapped="MediaList_DoubleTapped">
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <Grid ColumnDefinitions="80,80,*">
+                                <TextBlock Grid.Column="0"
+                                           Text="{Binding Kind}"
+                                           Margin="0,0,8,0"/>
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding Time}"
+                                           Margin="0,0,8,0"/>
+                                <TextBlock Grid.Column="2"
+                                           Text="{Binding FileName}"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+
+                <Button x:Name="DeleteMediaBtn"
+                        Content="Usuń element"
+                        Margin="0,4,0,0"
+                        HorizontalAlignment="Left"
+                        Click="DeleteMediaBtn_Click"
+                        IsEnabled="False"/>
+            </StackPanel>
+
+            <!-- PODGLĄD ZDJĘCIA / NAGRANIA -->
+            <Grid Grid.Column="1" Margin="12,0,0,0">
+                <Border Background="Black">
+                    <Grid>
+                        <!-- podgląd wideo -->
+                        <MediaPlayerElement x:Name="PreviewPlayer"
+                                            AreTransportControlsEnabled="False"
+                                            Visibility="Collapsed"/>
+
+                        <!-- podgląd zdjęcia -->
+                        <Image x:Name="PreviewImage"
+                               Stretch="Uniform"
+                               Visibility="Collapsed"/>
+
+                        <!-- placeholder, gdy nic nie wybrano -->
+                        <TextBlock x:Name="PreviewPlaceholder"
+                                   Text="Brak wybranego elementu"
+                                   Foreground="White"
+                                   Opacity="0.7"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <!-- DÓŁ: opis badania + przyciski -->
+        <Grid Grid.Row="1"
+              Grid.ColumnSpan="3"
+              Margin="0,16,0,0">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- nagłówek sekcji -->
-            <TextBlock x:Name="SelectedMediaHeader"
-                       FontSize="18"
-                       FontWeight="SemiBold"
-                       Margin="0,0,0,6"
-                       Text="Elementy badania"/>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
 
-            <!-- środek: lista mediów + podgląd -->
-            <Grid Grid.Row="1">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="2*"/>
-                    <ColumnDefinition Width="3*"/>
-                </Grid.ColumnDefinitions>
+            <TextBlock Grid.Row="0"
+                       Grid.ColumnSpan="3"
+                       Text="Opis badania:"
+                       Margin="0,0,0,4"/>
 
-                <!-- lista elementów badania + opis -->
-                <Grid Grid.Column="0">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="120"/>
-                    </Grid.RowDefinitions>
+            <TextBox x:Name="ExamDescriptionText"
+                     Grid.Row="1"
+                     Grid.Column="0"
+                     Margin="0,0,16,0"
+                     Height="120"
+                     TextWrapping="Wrap"
+                     AcceptsReturn="True"
+                     IsReadOnly="True"/>
 
-                    <ListView x:Name="MediaList"
-                              Grid.Row="0"
-                              SelectionChanged="MediaList_SelectionChanged"
-                              DoubleTapped="MediaList_DoubleTapped">
-                        <ListView.ItemTemplate>
-                            <DataTemplate>
-                                <Grid Padding="4">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="60"/>
-                                        <ColumnDefinition Width="80"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="30"/>
-                                    </Grid.ColumnDefinitions>
+            <Button x:Name="EditDescriptionBtn"
+                    Grid.Row="1"
+                    Grid.Column="1"
+                    Content="Edytuj opis"
+                    Width="110"
+                    Margin="0,0,8,0"
+                    Click="EditDescriptionBtn_Click"
+                    IsEnabled="False"/>
 
-                                    <TextBlock Text="{Binding Kind}"
-                                               Grid.Column="0"
-                                               FontWeight="SemiBold"/>
-
-                                    <TextBlock Text="{Binding Time}"
-                                               Grid.Column="1"
-                                               Opacity="0.8"/>
-
-                                    <TextBlock Text="{Binding FileName}"
-                                               Grid.Column="2"/>
-
-                                    <TextBlock Text="★"
-                                               Grid.Column="3"
-                                               Foreground="Gold"
-                                               HorizontalAlignment="Right"
-                                               Visibility="{Binding Important,
-                                                    Converter={StaticResource BoolToVisibilityConverter}}"/>
-                                </Grid>
-                            </DataTemplate>
-                        </ListView.ItemTemplate>
-                    </ListView>
-
-                    <TextBlock Grid.Row="1"
-                               Text="Opis elementu:"
-                               Margin="0,8,0,4"/>
-
-                    <TextBox x:Name="ExamDescriptionText"
-                             Grid.Row="2"
-                             AcceptsReturn="True"
-                             TextWrapping="Wrap"/>
-                </Grid>
-
-                <!-- podgląd zdjęcia / wideo -->
-                <Grid Grid.Column="1" Margin="12,0,0,0">
-                    <Border Background="Black">
-                        <Grid>
-                            <!-- wideo -->
-                            <MediaPlayerElement x:Name="PreviewPlayer"
-                                                AreTransportControlsEnabled="False"
-                                                Visibility="Collapsed"/>
-
-                            <!-- zdjęcie -->
-                            <Image x:Name="PreviewImage"
-                                   Stretch="Uniform"
-                                   Visibility="Collapsed"/>
-
-                            <!-- komunikat gdy nic nie wybrano -->
-                            <TextBlock x:Name="PreviewPlaceholder"
-                                       Text="Brak wybranego elementu"
-                                       Foreground="White"
-                                       Opacity="0.7"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center"/>
-                        </Grid>
-                    </Border>
-                </Grid>
-            </Grid>
-
-            <!-- dolny pasek przycisków -->
-            <StackPanel Grid.Row="2"
-                        Orientation="Horizontal"
-                        HorizontalAlignment="Left"
-                        Spacing="12"
-                        Margin="0,8,0,0">
-                <Button x:Name="EditDescriptionBtn"
-                        Content="Zapisz opis"
-                        Click="EditDescriptionBtn_Click"/>
-                <Button x:Name="DeleteMediaBtn"
-                        Content="Usuń element"
-                        Click="DeleteMediaBtn_Click"/>
-                <CheckBox x:Name="ImportantCheckBox"
-                          Content="Ważne"
-                          VerticalAlignment="Center"
-                          Checked="ImportantCheckBox_Changed"
-                          Unchecked="ImportantCheckBox_Changed"/>
-            </StackPanel>
+            <Button x:Name="DeleteExamBtn"
+                    Grid.Row="1"
+                    Grid.Column="2"
+                    Content="Usuń badanie"
+                    Width="120"
+                    Click="DeleteExamBtn_Click"
+                    IsEnabled="False"/>
         </Grid>
     </Grid>
 </UserControl>

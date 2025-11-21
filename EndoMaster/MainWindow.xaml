@@ -33,27 +33,28 @@
                 <muxc:NavigationView.MenuItems>
                     <muxc:NavigationViewItem Content="Lista pacjentów"
                                              Icon="Contact"
-                                             Tag="patients"/>
+                                             Tag="patients" />
                     <muxc:NavigationViewItem Content="Kamera"
                                              Icon="Video"
-                                             Tag="camera"/>
+                                             Tag="camera" />
                     <muxc:NavigationViewItem Content="Ustawienia"
                                              Icon="Setting"
-                                             Tag="settings"/>
+                                             Tag="settings" />
                 </muxc:NavigationView.MenuItems>
             </muxc:NavigationView>
 
             <!-- Miejsce na widoki (PatientsView / CameraView / PatientDetailsView) -->
-            <Frame x:Name="RootFrame" Grid.Column="1"/>
+            <Frame x:Name="RootFrame" Grid.Column="1" />
         </Grid>
 
         <!-- Pasek statusu DB -->
-        <Border Grid.Row="1" Padding="12,6"
+        <Border Grid.Row="1"
+                Padding="12,6"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
             <TextBlock x:Name="DbStatusText"
                        Text="DB: (czekam...)"
                        FontSize="12"
-                       Opacity="0.9"/>
+                       Opacity="0.9" />
         </Border>
     </Grid>
 </Window>

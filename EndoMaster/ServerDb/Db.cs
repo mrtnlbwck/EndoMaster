@@ -432,5 +432,49 @@ ORDER BY time;";
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
+    // ─── Badanie: aktualizacja opisu ──────────────────────────────────────────
+    public async Task UpdateExamDescriptionAsync(
+        int examId,
+        string? description,
+        CancellationToken ct = default)
+    {
+        const string sql = "UPDATE examination SET description = @d WHERE id_examination = @id;";
+
+        await using var c = new NpgsqlConnection(_conn);
+        await c.OpenAsync(ct);
+        await using var cmd = new NpgsqlCommand(sql, c);
+        cmd.Parameters.AddWithValue("@d", (object?)description ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("@id", examId);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    // ─── Badanie: usuwanie całego badania ─────────────────────────────────────
+    public async Task DeleteExamAsync(int examId, CancellationToken ct = default)
+    {
+        const string sql = "DELETE FROM examination WHERE id_examination = @id;";
+
+        await using var c = new NpgsqlConnection(_conn);
+        await c.OpenAsync(ct);
+        await using var cmd = new NpgsqlCommand(sql, c);
+        cmd.Parameters.AddWithValue("@id", examId);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    //public async Task SetMediaImportantAsync(bool isMovie, int id, bool important, CancellationToken ct = default)
+    //{
+    //    string sql = isMovie
+    //        ? "UPDATE movie SET important = @i WHERE id_movie = @id;"
+    //        : "UPDATE image SET important = @i WHERE id_image = @id;";
+
+    //    await using var c = new NpgsqlConnection(_conn);
+    //    await c.OpenAsync(ct);
+
+    //    await using var cmd = new NpgsqlCommand(sql, c);
+    //    cmd.Parameters.AddWithValue("@i", important);
+    //    cmd.Parameters.AddWithValue("@id", id);
+
+    //    await cmd.ExecuteNonQueryAsync(ct);
+    //}
+
 
 }
