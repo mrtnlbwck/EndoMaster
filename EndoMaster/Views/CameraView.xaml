@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="EndoMaster.Views.CameraView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:EndoMaster.Views"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+
+    <Grid Padding="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Text="Kamera:" VerticalAlignment="Center"/>
+            <ComboBox x:Name="CameraCombo" Width="220"
+                      SelectionChanged="CameraCombo_SelectionChanged"/>
+
+            <TextBlock Text="Rozdzielczość:" Margin="16,0,0,0" VerticalAlignment="Center"/>
+            <ComboBox x:Name="ResolutionCombo" Width="220"
+                      SelectionChanged="ResolutionCombo_SelectionChanged"/>
+
+            <Button x:Name="PhotoBtn" Content="Zrób zdjęcie"
+                    Margin="16,0,0,0" Click="PhotoBtn_Click"/>
+
+            <ToggleButton x:Name="RecordToggle" Content="● Nagrywanie"
+                          Margin="8,0,0,0"
+                          Checked="RecordToggle_Checked"
+                          Unchecked="RecordToggle_Unchecked"/>
+
+            <Button x:Name="RefreshBtn" Content="Odśwież"
+                    Margin="8,0,0,0" Click="RefreshBtn_Click"/>
+        </StackPanel>
+
+        <Grid Grid.Row="1">
+            <MediaPlayerElement x:Name="PlayerElement"
+                                AreTransportControlsEnabled="False"/>
+            <Grid x:Name="Overlay"
+                  Background="Black"
+                  Opacity="0.6">
+                <TextBlock Text="Brak podglądu"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           Foreground="White"/>
+            </Grid>
+        </Grid>
+
+        <TextBlock Grid.Row="2"
+                   x:Name="StatusText"
+                   Opacity="0.8"
+                   Margin="0,8,0,0"/>
+    </Grid>
+</UserControl>
+

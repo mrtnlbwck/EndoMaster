@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "EndoMaster (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "EndoMaster (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

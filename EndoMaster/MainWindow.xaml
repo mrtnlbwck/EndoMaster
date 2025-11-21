@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="EndoMaster.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
+    xmlns:views="using:EndoMaster.Views">
+
+    <!-- Główny layout -->
+    <Grid x:Name="LayoutRoot" Loaded="Root_Loaded">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Górna część: menu + treść -->
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="260"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Menu po lewej -->
+            <muxc:NavigationView
+                x:Name="NavView"
+                Grid.Column="0"
+                PaneDisplayMode="Left"
+                IsPaneToggleButtonVisible="False"
+                IsBackButtonVisible="Collapsed"
+                IsSettingsVisible="False"
+                SelectionChanged="NavView_SelectionChanged">
+
+                <muxc:NavigationView.MenuItems>
+                    <muxc:NavigationViewItem Content="Lista pacjentów"
+                                             Icon="Contact"
+                                             Tag="patients"/>
+                    <muxc:NavigationViewItem Content="Kamera"
+                                             Icon="Video"
+                                             Tag="camera"/>
+                    <muxc:NavigationViewItem Content="Ustawienia"
+                                             Icon="Setting"
+                                             Tag="settings"/>
+                </muxc:NavigationView.MenuItems>
+            </muxc:NavigationView>
+
+            <!-- Miejsce na widoki (PatientsView / CameraView / PatientDetailsView) -->
+            <Frame x:Name="RootFrame" Grid.Column="1"/>
+        </Grid>
+
+        <!-- Pasek statusu DB -->
+        <Border Grid.Row="1" Padding="12,6"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+            <TextBlock x:Name="DbStatusText"
+                       Text="DB: (czekam...)"
+                       FontSize="12"
+                       Opacity="0.9"/>
+        </Border>
+    </Grid>
+</Window>
