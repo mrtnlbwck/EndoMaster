@@ -1,6 +1,5 @@
 # SinuViewer
 
-SinuViewer to aplikacja desktopowa (Windows) umożliwiająca wykonywanie i archiwizowanie badań endoskopowych, zarządzanie pacjentami oraz integrację z kamerami wideo używanymi w diagnostyce laryngologicznej.
 
 Projekt jest rozwijany w technologii **WinUI 3 / Windows App SDK** oraz wykorzystuje bazę danych **PostgreSQL**.
 
@@ -40,21 +39,6 @@ SinuViewer/
   - rejestracja zdjęć i filmów  
   - opis badania  
   - automatyczne przypisanie dat i godzin  
-  - oznaczanie „ważne / pilne”
-
-- Obsługa urządzeń endoskopowych  
-  - zapis konfiguracji urządzeń  
-  - parametry kamery (hue, brightness, contrast, FPS, rozdzielczość)
-
-- Użytkownicy i role  
-  - role: `administrator`, `lekarz`  
-  - haszowane hasła (bcrypt)  
-  - aktywacja/dezaktywacja konta
-
-- Ustawienia systemowe  
-  - tryb deweloperski  
-  - konfiguracja UI  
-  - stan ostatniego zalogowanego użytkownika
 
 ---
 
@@ -66,10 +50,8 @@ Host=localhost;Port=5432;Database=sinutronic;Username=sinutronic;Password=TWOJE_
 Pliki do instalacji bazy znajdują się w:  
 /ServerDB
 
-
 Instrukcje instalacji opisane są w dokumencie:
 INSTALL_DB.md
-
 ---
 
 ## 5. Budowanie i uruchamianie projektu
