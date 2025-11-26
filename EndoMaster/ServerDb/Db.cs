@@ -222,16 +222,17 @@ RETURNING id_patient;";
     }
 
     // ─── Pacjent: wyszukiwanie ────────────────────────────────────────────────
-    public async Task<List<(int id_patient, string name, string surname, string pesel)>> SearchPatientsAsync(
-        string query,
-        CancellationToken ct = default)
+    public async Task<List<(int id_patient, string name, string surname, string pesel, DateTime? last_exam_date)>> SearchPatientsAsync(
+    string query,
+    CancellationToken ct = default)
+
     {
         string sql;
         var useQuery = !string.IsNullOrWhiteSpace(query);
 
         if (useQuery)
             sql = @"
-SELECT id_patient, name, surname, pesel
+SELECT id_patient, name, surname, pesel, last_exam_date
 FROM patient
 WHERE LOWER(name) LIKE LOWER(@q)
    OR LOWER(surname) LIKE LOWER(@q)
@@ -240,20 +241,29 @@ ORDER BY surname, name
 LIMIT 50;";
         else
             sql = @"
-SELECT id_patient, name, surname, pesel
+SELECT id_patient, name, surname, pesel, last_exam_date
 FROM patient
 ORDER BY id_patient DESC
 LIMIT 50;";
+
 
         await using var c = new NpgsqlConnection(_conn);
         await c.OpenAsync(ct);
         await using var cmd = new NpgsqlCommand(sql, c);
         if (useQuery) cmd.Parameters.AddWithValue("@q", $"%{query}%");
 
-        var list = new List<(int, string, string, string)>();
+        var list = new List<(int, string, string, string, DateTime?)>();
         await using var rd = await cmd.ExecuteReaderAsync(ct);
         while (await rd.ReadAsync(ct))
-            list.Add((rd.GetInt32(0), rd.GetString(1), rd.GetString(2), rd.GetString(3)));
+        {
+            var id = rd.GetInt32(0);
+            var name = rd.GetString(1);
+            var sur = rd.GetString(2);
+            var pesel = rd.GetString(3);
+            DateTime? lastExam = rd.IsDBNull(4) ? (DateTime?)null : rd.GetDateTime(4);
+
+            list.Add((id, name, sur, pesel, lastExam));
+        }
 
         return list;
     }

@@ -34,9 +34,9 @@
                     <muxc:NavigationViewItem Content="Lista pacjentów"
                                              Icon="Contact"
                                              Tag="patients" />
-                    <muxc:NavigationViewItem Content="Kamera"
-                                             Icon="Video"
-                                             Tag="camera" />
+                    <muxc:NavigationViewItem Content="Szybkie badanie"
+                         Icon="Camera"
+                         Tag="camera"/>
                     <muxc:NavigationViewItem Content="Ustawienia"
                                              Icon="Setting"
                                              Tag="settings" />
@@ -58,3 +58,5 @@
         </Border>
     </Grid>
 </Window>
+
+    

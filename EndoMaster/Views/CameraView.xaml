@@ -35,6 +35,12 @@
 
             <Button x:Name="RefreshBtn" Content="Odśwież"
                     Margin="8,0,0,0" Click="RefreshBtn_Click"/>
+            <Button x:Name="FinishExamBtn"
+                Content="Zakończ badanie"
+                Margin="8"
+                HorizontalAlignment="Right"
+                Click="FinishExamBtn_Click"/>
+
         </StackPanel>
 
         <Grid Grid.Row="1">

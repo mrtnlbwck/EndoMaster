@@ -46,6 +46,8 @@ namespace EndoMaster.Views
         private int? _currentExamId;
         private StorageFile? _lastRecordedFile;
 
+        public event Action? FinishExamRequested;
+
         public CameraView()
         {
             InitializeComponent();
@@ -425,6 +427,14 @@ namespace EndoMaster.Views
 
             Overlay.Visibility = Visibility.Visible;
         }
+
+        private void FinishExamBtn_Click(object sender, RoutedEventArgs e)
+        {
+            // nie przekazujemy żadnych ID, MainWindow użyje _currentPatientId / _currentExamId
+            FinishExamRequested?.Invoke();
+        }
+
+
     }
 }
 

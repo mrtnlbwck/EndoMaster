@@ -16,7 +16,7 @@
             <TextBlock Text="Lista pacjentów" FontSize="22" FontWeight="SemiBold"/>
             <TextBox x:Name="SearchBox" Width="260" PlaceholderText="Wyszukaj" TextChanged="SearchBox_TextChanged"/>
             <Button x:Name="NewPatientBtn" Content="Nowy pacjent" Click="NewPatientBtn_Click"/>
-            <Button x:Name="StartCameraBtn" Content="Uruchom kamerę" Click="StartCameraBtn_Click"/>
+            <Button x:Name="StartCameraBtn" Content="Rozpocznij badanie" Click="StartCameraBtn_Click"/>
         </StackPanel>
         <Grid Grid.Row="1" Padding="8,6" Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}">
             <Grid.ColumnDefinitions>

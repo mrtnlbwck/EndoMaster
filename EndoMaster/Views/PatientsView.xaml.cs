@@ -40,8 +40,18 @@ namespace EndoMaster.Views
             var rows = await _db.SearchPatientsAsync(q);
             int i = 1;
             PatientsList.ItemsSource = rows.Select(r =>
-                new Row(r.id_patient, i++, r.name, r.surname, r.pesel, "")
+                new Row(
+                    Id: r.id_patient,
+                    Index: i++,
+                    Name: r.name,
+                    Surname: r.surname,
+                    Pesel: r.pesel,
+                    LastExam: r.last_exam_date.HasValue
+                        ? r.last_exam_date.Value.ToString("dd.MM.yyyy")
+                        : string.Empty
+                )
             ).ToList();
+
             StartCameraBtn.IsEnabled = PatientsList.SelectedItem is Row;
         }
 
